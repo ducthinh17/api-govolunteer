@@ -6,3 +6,4 @@ lxml
 gunicorn
 uvicorn
 selenium
+webdriver-manager
