@@ -1,7 +1,10 @@
+# fix fail 
+
 
 import time
 import random
 import sys
+import re  # Import thư viện regular expression của Python
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
@@ -15,7 +18,6 @@ FALLBACK_IMAGE_URL = "https://govolunteerhcmc.vn/wp-content/uploads/2024/02/logo
 def setup_driver():
     """
     Cấu hình và khởi tạo một Chrome driver ở chế độ headless.
-    Chế độ này rất quan trọng để chạy trên server không có giao diện đồ họa.
     """
     chrome_options = Options()
     chrome_options.add_argument("--headless")
@@ -28,7 +30,7 @@ def setup_driver():
     try:
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
-        driver.set_page_load_timeout(45) # Tăng thời gian chờ tải trang lên 45 giây
+        driver.set_page_load_timeout(45)
         print("✅ Selenium Driver đã sẵn sàng.")
         return driver
     except Exception as e:
@@ -37,15 +39,15 @@ def setup_driver():
 
 def get_high_res_image_url(url: str):
     """
-    Loại bỏ các hậu tố kích thước của WordPress (ví dụ: "-300x192")
-    khỏi URL hình ảnh để lấy phiên bản có độ phân giải cao nhất.
+    Loại bỏ các hậu tố kích thước của WordPress để lấy ảnh gốc.
     """
     if not url: return FALLBACK_IMAGE_URL
-    return url.replace(/-\d{2,4}x\d{2,4}(?=\.\w+$)/, "")
+    # SỬA LỖI: Dùng re.sub với cú pháp chuỗi của Python
+    return re.sub(r'-\d{2,4}x\d{2,4}(?=\.\w+$)', '', url)
 
 def scrape_news():
     """
-    Scrapes news articles from the GoVolunteerHCMC main page using Selenium.
+    Scrapes news articles from the GoVolunteerHCMC main page.
     """
     driver = setup_driver()
     if not driver:
@@ -54,7 +56,7 @@ def scrape_news():
     try:
         print(f"🌍 Đang truy cập trang chủ: {BASE_URL}")
         driver.get(BASE_URL)
-        time.sleep(5)  # Đợi JavaScript tải
+        time.sleep(5)
         
         soup = BeautifulSoup(driver.page_source, "lxml")
         sections = []
@@ -72,9 +74,6 @@ def scrape_news():
                 if not a or not a.get('href', '').startswith(BASE_URL):
                     continue
 
-                title = a.text.strip()
-                link = a['href']
-                
                 img = post.select_one(".elementor-post__thumbnail img")
                 image_url = get_high_res_image_url(img['src']) if img and img.get('src') else FALLBACK_IMAGE_URL
                 
@@ -82,8 +81,8 @@ def scrape_news():
                 excerpt = ex.text.strip() if ex else None
                 
                 articles.append({
-                    "title": title,
-                    "link": link,
+                    "title": a.text.strip(),
+                    "link": a['href'],
                     "imageUrl": image_url,
                     "excerpt": excerpt,
                 })
@@ -107,7 +106,7 @@ def scrape_news():
 
 def scrape_article_content(article_url: str):
     """
-    Scrapes the content of a single article using Selenium.
+    Scrapes the content of a single article.
     """
     driver = setup_driver()
     if not driver:
@@ -136,27 +135,25 @@ def scrape_article_content(article_url: str):
         print("🚪 Đóng Selenium Driver của tác vụ /article.")
 
 # ----------------------------------------------------------------------
-# FILE: main.py (PHIÊN BẢN CHUYÊN NGHIỆP VÀ HOÀN CHỈNH)
+# FILE: main.py
 #
-# Cập nhật file này để trả về thông báo lỗi chi tiết hơn và rõ ràng hơn.
+# Không cần thay đổi file này, nhưng tôi sẽ đưa vào để bạn có đầy đủ.
 # ----------------------------------------------------------------------
-
 import time
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-# Đổi tên import để dễ phân biệt
 from scraper import scrape_news as fetch_news_from_source
 from scraper import scrape_article_content as fetch_article_from_source
 
 app = FastAPI(
     title="GoVolunteer Scraper API",
     description="API chuyên nghiệp để lấy dữ liệu từ GoVolunteerHCMC.",
-    version="3.0.0",
+    version="3.1.0", # Cập nhật phiên bản
 )
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["GET"], allow_headers=["*"])
 
 cache = { "news_data": None, "last_fetched": 0 }
-CACHE_DURATION_SECONDS = 1800 # Cache trong 30 phút
+CACHE_DURATION_SECONDS = 1800
 
 @app.get("/", summary="Kiểm tra trạng thái API")
 def read_root():
