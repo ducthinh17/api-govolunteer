@@ -15,8 +15,16 @@ def setup_driver():
     """Cấu hình Chrome Driver một cách đáng tin cậy cho môi trường Render."""
     chrome_options = Options()
     
-    # Render tự động đặt các biến môi trường này sau khi cài buildpack
-    chrome_options.binary_location = os.environ.get("GOOGLE_CHROME_BIN")
+    # --- SỬA LỖI QUAN TRỌNG NHẤT ---
+    # Nếu không tìm thấy biến môi trường, hãy sử dụng đường dẫn mặc định
+    # mà buildpack thường cài đặt. Điều này làm cho code ổn định hơn.
+    chrome_bin = os.environ.get("GOOGLE_CHROME_BIN", "/app/.apt/usr/bin/google-chrome")
+    driver_path = os.environ.get("CHROMEDRIVER_PATH", "/app/.chromedriver/bin/chromedriver")
+    
+    print(f"ℹ️ Sử dụng Chrome tại: {chrome_bin}")
+    print(f"ℹ️ Sử dụng Chromedriver tại: {driver_path}")
+    
+    chrome_options.binary_location = chrome_bin
     
     # Các tùy chọn bắt buộc để chạy trong môi trường container (server)
     chrome_options.add_argument("--headless")
@@ -24,19 +32,15 @@ def setup_driver():
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     
-    print("🚀 Đang khởi tạo Selenium Driver với đường dẫn từ buildpack...")
+    print("🚀 Đang khởi tạo Selenium Driver với đường dẫn đã xác định...")
     try:
-        # Sử dụng đường dẫn chromedriver do Render cung cấp
-        service = Service(executable_path=os.environ.get("CHROMEDRIVER_PATH"))
+        service = Service(executable_path=driver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(30)
         print("✅ Selenium Driver đã sẵn sàng.")
         return driver
     except Exception as e:
         print(f"❌ LỖI KHỞI TẠO DRIVER: {e}", file=sys.stderr)
-        print("--- GỢI Ý GỠ LỖI ---", file=sys.stderr)
-        print("1. Đảm bảo bạn đã thêm 2 buildpack (google-chrome và chromedriver) trên Render.", file=sys.stderr)
-        print("2. Đảm bảo biến môi trường GOOGLE_CHROME_BIN và CHROMEDRIVER_PATH được Render tự động thiết lập.", file=sys.stderr)
         return None
 
 def get_high_res_image_url(url: str):
@@ -51,7 +55,6 @@ def scrape_news():
         driver.get(BASE_URL)
         time.sleep(5)
         soup = BeautifulSoup(driver.page_source, "lxml")
-        # ... (Phần logic parse còn lại giữ nguyên) ...
         sections = []
         for sec in soup.select("section.elementor-section.elementor-top-section"):
             h2 = sec.select_one("h2.elementor-heading-title.elementor-size-default")
@@ -74,7 +77,7 @@ def scrape_news():
         print(f"❌ Lỗi khi scraping trang chủ: {e}", file=sys.stderr)
         return None
     finally:
-        driver.quit()
+        if driver: driver.quit()
 
 def scrape_article_content(article_url: str):
     driver = setup_driver()
@@ -90,4 +93,4 @@ def scrape_article_content(article_url: str):
         print(f"❌ Lỗi khi scraping bài viết: {e}", file=sys.stderr)
         return None
     finally:
-        driver.quit()
+        if driver: driver.quit()
