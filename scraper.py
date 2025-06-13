@@ -1,31 +1,33 @@
 import time
 import random
 import sys
-import re  # Import thư viện regular expression của Python
+import re
+import os # Thêm thư viện os
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 
 BASE_URL = "https://govolunteerhcmc.vn"
 FALLBACK_IMAGE_URL = "https://govolunteerhcmc.vn/wp-content/uploads/2024/02/logo-gv-tron.png"
 
 def setup_driver():
-    """
-    Cấu hình và khởi tạo một Chrome driver ở chế độ headless.
-    """
+    """Cấu hình Chrome Driver cho môi trường Render."""
     chrome_options = Options()
+    # Các đường dẫn này là tiêu chuẩn khi sử dụng Heroku/Render buildpacks
+    chrome_options.binary_location = os.environ.get("GOOGLE_CHROME_BIN", "/app/.apt/usr/bin/google-chrome")
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument(f'user-agent={random.choice(["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"])}')
     
-    print("🚀 Đang khởi tạo Selenium Driver...")
+    print("🚀 Đang khởi tạo Selenium Driver trên môi trường Render...")
     try:
-        service = Service(ChromeDriverManager().install())
+        # Đường dẫn tới chromedriver do buildpack cung cấp
+        driver_path = os.environ.get("CHROMEDRIVER_PATH", "/app/.chromedriver/bin/chromedriver")
+        service = Service(executable_path=driver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(45)
         print("✅ Selenium Driver đã sẵn sàng.")
@@ -35,17 +37,12 @@ def setup_driver():
         return None
 
 def get_high_res_image_url(url: str):
-    """
-    Loại bỏ các hậu tố kích thước của WordPress để lấy ảnh gốc.
-    """
+    """Lấy ảnh gốc có độ phân giải cao."""
     if not url: return FALLBACK_IMAGE_URL
-    # SỬA LỖI: Dùng re.sub với cú pháp chuỗi của Python
     return re.sub(r'-\d{2,4}x\d{2,4}(?=\.\w+$)', '', url)
 
 def scrape_news():
-    """
-    Scrapes news articles from the GoVolunteerHCMC main page.
-    """
+    """Lấy dữ liệu từ trang chủ."""
     driver = setup_driver()
     if not driver:
         return None
@@ -102,15 +99,13 @@ def scrape_news():
         print("🚪 Đã đóng Selenium Driver của tác vụ /news.")
 
 def scrape_article_content(article_url: str):
-    """
-    Scrapes the content of a single article.
-    """
+    """Lấy nội dung chi tiết của một bài viết."""
     driver = setup_driver()
     if not driver:
         return None
 
     try:
-        print(f"📄 Đang truy cập bài viết: {article_url}")
+        print(f"� Đang truy cập bài viết: {article_url}")
         driver.get(article_url)
         time.sleep(3)
         
