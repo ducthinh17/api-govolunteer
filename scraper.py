@@ -1,6 +1,3 @@
-# fix fail 
-
-
 import time
 import random
 import sys
@@ -42,6 +39,7 @@ def get_high_res_image_url(url: str):
     Loại bỏ các hậu tố kích thước của WordPress để lấy ảnh gốc.
     """
     if not url: return FALLBACK_IMAGE_URL
+    # SỬA LỖI: Dùng re.sub với cú pháp chuỗi của Python
     return re.sub(r'-\d{2,4}x\d{2,4}(?=\.\w+$)', '', url)
 
 def scrape_news():
@@ -132,53 +130,3 @@ def scrape_article_content(article_url: str):
     finally:
         driver.quit()
         print("🚪 Đóng Selenium Driver của tác vụ /article.")
-
-import time
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from scraper import scrape_news as fetch_news_from_source
-from scraper import scrape_article_content as fetch_article_from_source
-
-app = FastAPI(
-    title="GoVolunteer Scraper API",
-    description="API chuyên nghiệp để lấy dữ liệu từ GoVolunteerHCMC.",
-    version="3.1.0", # Cập nhật phiên bản
-)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["GET"], allow_headers=["*"])
-
-cache = { "news_data": None, "last_fetched": 0 }
-CACHE_DURATION_SECONDS = 1800
-
-@app.get("/", summary="Kiểm tra trạng thái API")
-def read_root():
-    return {"status": "online", "message": "Chào mừng đến với API GoVolunteer!"}
-
-@app.get("/news", summary="Lấy danh sách tất cả tin tức (có cache)")
-def get_all_news():
-    current_time = time.time()
-    if cache["news_data"] and (current_time - cache["last_fetched"] < CACHE_DURATION_SECONDS):
-        print("✅ Trả về dữ liệu từ cache.")
-        return cache["news_data"]
-    
-    print("♻️ Cache đã hết hạn. Bắt đầu scrape dữ liệu mới...")
-    data = fetch_news_from_source()
-    
-    if not data:
-        raise HTTPException(status_code=503, detail="Không thể lấy dữ liệu từ trang chủ GoVolunteer. Server có thể đang bận hoặc trang web không phản hồi.")
-    
-    cache["news_data"] = data
-    cache["last_fetched"] = current_time
-    print("💾 Đã cập nhật cache với dữ liệu mới.")
-    return data
-
-@app.get("/article", summary="Lấy nội dung chi tiết của một bài viết")
-def get_article_detail(url: str):
-    if not url or not url.startswith(BASE_URL):
-        raise HTTPException(status_code=400, detail=f"URL không hợp lệ.")
-    
-    content = fetch_article_from_source(url)
-    
-    if content is None:
-        raise HTTPException(status_code=503, detail="Server đã gặp lỗi khi cố gắng lấy nội dung bài viết. Nguyên nhân có thể do hết thời gian chờ hoặc không tìm thấy nội dung trên trang.")
-        
-    return {"html_content": content}
