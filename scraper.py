@@ -42,7 +42,6 @@ def get_high_res_image_url(url: str):
     Loại bỏ các hậu tố kích thước của WordPress để lấy ảnh gốc.
     """
     if not url: return FALLBACK_IMAGE_URL
-    # SỬA LỖI: Dùng re.sub với cú pháp chuỗi của Python
     return re.sub(r'-\d{2,4}x\d{2,4}(?=\.\w+$)', '', url)
 
 def scrape_news():
@@ -134,11 +133,6 @@ def scrape_article_content(article_url: str):
         driver.quit()
         print("🚪 Đóng Selenium Driver của tác vụ /article.")
 
-# ----------------------------------------------------------------------
-# FILE: main.py
-#
-# Không cần thay đổi file này, nhưng tôi sẽ đưa vào để bạn có đầy đủ.
-# ----------------------------------------------------------------------
 import time
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
