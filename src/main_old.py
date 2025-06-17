@@ -3,19 +3,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- CẬP NHẬT DÒNG IMPORT ---
-# Giờ đây chúng ta nhập tất cả các hàm scrape cần thiết
+# Giờ đây chúng ta nhập cả hai hàm từ scraper và đổi tên chúng cho nhất quán
 from scraper import scrape_news as fetch_news_from_source
 from scraper import scrape_article_with_requests as fetch_article_from_source
-from scraper import (
-    scrape_chuong_trinh_chien_dich_du_an,
-    scrape_skills,
-    scrape_ideas,
-    scrape_clubs,  # Import hàm mới
-    BASE_URL
-)
+from scraper import scrape_chuong_trinh_chien_dich_du_an
+from scraper import scrape_skills
+from scraper import scrape_ideas
+from scraper import BASE_URL
 
-# --- KHỞI TẠO APP VÀ CẤU HÌNH ---
-app = FastAPI(title="GoVolunteer Scraper API", version="7.0.0") # Tăng phiên bản
+# --- KHỞI TẠO APP VÀ CẤU HÌNH (GIỮ NGUYÊN) ---
+app = FastAPI(title="GoVolunteer Scraper API", version="6.0.0") # Tăng phiên bản
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,7 +33,7 @@ def read_root():
 
 @app.get("/news", summary="Lấy danh sách tất cả tin tức")
 def get_all_news():
-    """Lấy danh sách tin tức theo danh mục từ trang /news. Dữ liệu được cache trong 30 phút."""
+    """Lấy danh sách tin tức theo danh mục từ trang chủ. Dữ liệu được cache trong 30 phút."""
     current_time = time.time()
     if cache["news_data"] and (current_time - cache["last_fetched"] < CACHE_DURATION_SECONDS):
         print("✅ Trả về dữ liệu /news từ cache.")
@@ -55,32 +52,21 @@ def get_all_news():
     print("💾 Đã cập nhật cache /news.")
     return data
 
-# --- ENDPOINT MỚI CHO CLUBS ---
-@app.get("/clubs", summary="Lấy danh sách các CLB, Đội, Nhóm")
-def get_clubs():
-    """Lấy danh sách các CLB, đội, nhóm được phân loại từ trang /clubs."""
-    data = scrape_clubs()
-    if not data:
-        raise HTTPException(
-            status_code=503,
-            detail="Không thể lấy dữ liệu CLB. Trang web có thể đang bận hoặc không phản hồi."
-        )
-    return data
-
-@app.get("/chuong-trinh-chien-dich-du-an", summary="Lấy danh sách các chương trình, chiến dịch, dự án")
+@app.get("/chuong-trinh-chien-dich-du-an", summary="Lấy danh sách các chương trình chiến dịch dự án")
 def get_campaigns():
-    """Lấy danh sách các chương trình, chiến dịch, dự án được phân loại."""
+    """Lấy danh sách các chương trình chiến dịch dự án từ trang chủ."""
     data = scrape_chuong_trinh_chien_dich_du_an()
     if not data:
         raise HTTPException(
             status_code=503,
-            detail="Không thể lấy dữ liệu chương trình, chiến dịch, dự án. Trang web có thể đang bận hoặc không phản hồi."
+            detail="Không thể lấy dữ liệu chương trình chiến dịch dự án. Trang web có thể đang bận hoặc không phản hồi."
         )
     return data
 
-@app.get("/skills", summary="Lấy danh sách các bài viết kỹ năng")
+
+@app.get("/skills", summary="Lấy danh sách các kỹ năng")
 def get_skills():
-    """Lấy danh sách các bài viết kỹ năng được phân loại."""
+    """Lấy danh sách các kỹ năng từ trang chủ."""
     data = scrape_skills()
     if not data:
         raise HTTPException(
@@ -89,9 +75,10 @@ def get_skills():
         )
     return data
 
-@app.get("/ideas", summary="Lấy danh sách các ý tưởng tình nguyện")
+
+@app.get("/ideas", summary="Lấy danh sách các ý tưởng")
 def get_ideas():
-    """Lấy danh sách các ý tưởng tình nguyện được phân loại."""
+    """Lấy danh sách các ý tưởng từ trang chủ."""
     data = scrape_ideas()
     if not data:
         raise HTTPException(
@@ -106,7 +93,9 @@ def get_article_detail(url: str):
     if not url or not url.startswith(BASE_URL):
         raise HTTPException(status_code=400, detail=f"URL không hợp lệ. Phải bắt đầu bằng {BASE_URL}")
 
+    # Bây giờ hàm này sẽ gọi phiên bản dùng `requests`, nhanh và đáng tin cậy hơn
     content = fetch_article_from_source(url)
+
     if content is None:
         raise HTTPException(
             status_code=503,
