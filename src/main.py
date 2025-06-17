@@ -5,7 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 # --- CẬP NHẬT DÒNG IMPORT ---
 # Giờ đây chúng ta nhập cả hai hàm từ scraper và đổi tên chúng cho nhất quán
 from scraper import scrape_news as fetch_news_from_source
-from scraper import scrape_article_with_requests as fetch_article_from_source # Đổi sang hàm mới
+from scraper import scrape_article_with_requests as fetch_article_from_source
+from scraper import scrape_chuong_trinh_chien_dich_du_an
+from scraper import scrape_skills
+from scraper import scrape_ideas
 from scraper import BASE_URL
 
 # --- KHỞI TẠO APP VÀ CẤU HÌNH (GIỮ NGUYÊN) ---
@@ -47,6 +50,41 @@ def get_all_news():
     cache["news_data"] = data
     cache["last_fetched"] = current_time
     print("💾 Đã cập nhật cache /news.")
+    return data
+
+@app.get("/chuong-trinh-chien-dich-du-an", summary="Lấy danh sách các chương trình chiến dịch dự án")
+def get_campaigns():
+    """Lấy danh sách các chương trình chiến dịch dự án từ trang chủ."""
+    data = scrape_chuong_trinh_chien_dich_du_an()
+    if not data:
+        raise HTTPException(
+            status_code=503,
+            detail="Không thể lấy dữ liệu chương trình chiến dịch dự án. Trang web có thể đang bận hoặc không phản hồi."
+        )
+    return data
+
+
+@app.get("/skills", summary="Lấy danh sách các kỹ năng")
+def get_skills():
+    """Lấy danh sách các kỹ năng từ trang chủ."""
+    data = scrape_skills()
+    if not data:
+        raise HTTPException(
+            status_code=503,
+            detail="Không thể lấy dữ liệu kỹ năng. Trang web có thể đang bận hoặc không phản hồi."
+        )
+    return data
+
+
+@app.get("/ideas", summary="Lấy danh sách các ý tưởng")
+def get_ideas():
+    """Lấy danh sách các ý tưởng từ trang chủ."""
+    data = scrape_ideas()
+    if not data:
+        raise HTTPException(
+            status_code=503,
+            detail="Không thể lấy dữ liệu ý tưởng. Trang web có thể đang bận hoặc không phản hồi."
+        )
     return data
 
 @app.get("/article", summary="Lấy nội dung chi tiết của một bài viết")

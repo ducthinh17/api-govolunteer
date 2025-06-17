@@ -107,3 +107,16 @@ def scrape_article_with_requests(article_url: str):
     except Exception as e:
         print(f"❌ Lỗi không xác định khi xử lý bài viết: {e}", file=sys.stderr)
         return None
+# --- Placeholder functions for new routes ---
+
+def scrape_chuong_trinh_chien_dich_du_an():
+    print("Scraping chuong-trinh-chien-dich-du-an")
+    return []
+
+def scrape_skills():
+    print("Scraping /skills")
+    return []
+
+def scrape_ideas():
+    print("Scraping /ideas")
+    return []
