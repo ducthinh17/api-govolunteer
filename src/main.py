@@ -1,34 +1,38 @@
 import time
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-# --- CẬP NHẬT DÒNG IMPORT ---
-# Giờ đây chúng ta nhập tất cả các hàm scrape cần thiết
 from scraper import scrape_news as fetch_news_from_source
 from scraper import scrape_article_with_requests as fetch_article_from_source
 from scraper import (
     scrape_chuong_trinh_chien_dich_du_an,
     scrape_skills,
     scrape_ideas,
-    scrape_clubs,  # Import hàm mới
+    scrape_clubs,
     BASE_URL
 )
+from src.sheets_lookup import find_volunteer_info
 
-# --- KHỞI TẠO APP VÀ CẤU HÌNH ---
-app = FastAPI(title="GoVolunteer Scraper API", version="7.0.0") # Tăng phiên bản
+app = FastAPI(title="GoVolunteer Scraper & Lookup API", version="8.0.0") # Tăng phiên bản
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"], # Thêm POST để cho phép endpoint lookup
     allow_headers=["*"],
 )
+
+# --- MODEL CHO DỮ LIỆU ĐẦU VÀO CỦA ENDPOINT MỚI ---
+class LookupRequest(BaseModel):
+    fullName: str
+    citizenId: str
 
 # --- HỆ THỐNG CACHE (GIỮ NGUYÊN) ---
 cache = {"news_data": None, "last_fetched": 0}
 CACHE_DURATION_SECONDS = 1800  # Cache trong 30 phút
 
-# --- CÁC ENDPOINTS ---
+# --- CÁC ENDPOINTS CŨ (GIỮ NGUYÊN) ---
 @app.get("/", summary="Kiểm tra trạng thái API")
 def read_root():
     """Cung cấp trạng thái hoạt động của API."""
@@ -55,7 +59,6 @@ def get_all_news():
     print("💾 Đã cập nhật cache /news.")
     return data
 
-# --- ENDPOINT MỚI CHO CLUBS ---
 @app.get("/clubs", summary="Lấy danh sách các CLB, Đội, Nhóm")
 def get_clubs():
     """Lấy danh sách các CLB, đội, nhóm được phân loại từ trang /clubs."""
@@ -114,3 +117,31 @@ def get_article_detail(url: str):
         )
 
     return {"html_content": content}
+
+@app.post("/lookup", summary="Tra cứu Tình nguyện viên từ Google Sheets")
+def lookup_volunteer(request: LookupRequest):
+    """
+    Nhận Họ tên và CCCD, sau đó tìm kiếm thông tin tương ứng 
+    trong các Google Sheets đã đăng ký (Hoạt động và Chứng nhận).
+    """
+    results = find_volunteer_info(request.fullName, request.citizenId)
+    
+    activity_info = results.get('activity')
+    certificate_info = results.get('certificate')
+
+    if (isinstance(activity_info, dict) and 'error' in activity_info) or \
+       (isinstance(certificate_info, dict) and 'error' in certificate_info):
+        # In lỗi ra console của server để debug
+        print("LỖI KHI TRA CỨU:", results)
+        raise HTTPException(
+            status_code=503, # Service Unavailable
+            detail="Không thể xử lý yêu cầu do lỗi từ dịch vụ Google Sheets."
+        )
+
+    if not activity_info and not certificate_info:
+        raise HTTPException(
+            status_code=404, # Not Found
+            detail="Không tìm thấy thông tin tình nguyện viên phù hợp."
+        )
+    
+    return results
