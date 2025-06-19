@@ -3,7 +3,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# --- GIỮ NGUYÊN CÁC IMPORT CỦA BẠN ---
 from scraper import scrape_news as fetch_news_from_source
 from scraper import scrape_article_with_requests as fetch_article_from_source
 from scraper import (
@@ -13,24 +12,27 @@ from scraper import (
     scrape_clubs,
     BASE_URL
 )
-# --- Import hàm find_volunteer_info đã được sửa đổi logic bên trong ---
 from src.sheets_lookup import find_volunteer_info
 
-app = FastAPI(title="GoVolunteer Scraper & Lookup API", version="8.0.0") # Giữ nguyên version của bạn
+app = FastAPI(title="GoVolunteer Scraper & Lookup API", version="8.0.0") # Tăng phiên bản
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST"], # Thêm POST để cho phép endpoint lookup
     allow_headers=["*"],
 )
 
+# --- MODEL CHO DỮ LIỆU ĐẦU VÀO CỦA ENDPOINT MỚI ---
 class LookupRequest(BaseModel):
     fullName: str
     citizenId: str
 
-# --- TẤT CẢ CÁC ENDPOINT SCRAPER CỦA BẠN ĐƯỢC GIỮ NGUYÊN ---
-# ... (Toàn bộ code từ @app.get("/") đến @app.get("/article") của bạn nằm ở đây) ...
+# --- HỆ THỐNG CACHE (GIỮ NGUYÊN) ---
+cache = {"news_data": None, "last_fetched": 0}
+CACHE_DURATION_SECONDS = 1800  # Cache trong 30 phút
+
+# --- CÁC ENDPOINTS CŨ (GIỮ NGUYÊN) ---
 @app.get("/", summary="Kiểm tra trạng thái API")
 def read_root():
     """Cung cấp trạng thái hoạt động của API."""
@@ -40,8 +42,6 @@ def read_root():
 def get_all_news():
     """Lấy danh sách tin tức theo danh mục từ trang /news. Dữ liệu được cache trong 30 phút."""
     current_time = time.time()
-    cache = {"news_data": None, "last_fetched": 0}
-    CACHE_DURATION_SECONDS = 1800
     if cache["news_data"] and (current_time - cache["last_fetched"] < CACHE_DURATION_SECONDS):
         print("✅ Trả về dữ liệu /news từ cache.")
         return cache["news_data"]
@@ -118,32 +118,30 @@ def get_article_detail(url: str):
 
     return {"html_content": content}
 
-
-# --- ENDPOINT /lookup ĐƯỢC CẬP NHẬT ---
 @app.post("/lookup", summary="Tra cứu Tình nguyện viên từ Google Sheets")
 def lookup_volunteer(request: LookupRequest):
     """
-    Nhận Họ tên và CCCD, tìm kiếm trên cả 2 sheet Hoạt động và Chứng nhận,
-    và trả về một danh sách GỘP của tất cả các kết quả.
+    Nhận Họ tên và CCCD, sau đó tìm kiếm thông tin tương ứng 
+    trong các Google Sheets đã đăng ký (Hoạt động và Chứng nhận).
     """
-    # Hàm find_volunteer_info bây giờ trả về một danh sách gộp, hoặc một dict lỗi
-    all_records = find_volunteer_info(request.fullName, request.citizenId)
+    results = find_volunteer_info(request.fullName, request.citizenId)
     
-    # Xử lý trường hợp có lỗi từ Google Sheets
-    if isinstance(all_records, dict) and 'error' in all_records:
-        error_detail = all_records.get("error")
-        print(f"LỖI KHI TRA CỨU: {error_detail}")
+    activity_info = results.get('activity')
+    certificate_info = results.get('certificate')
+
+    if (isinstance(activity_info, dict) and 'error' in activity_info) or \
+       (isinstance(certificate_info, dict) and 'error' in certificate_info):
+        # In lỗi ra console của server để debug
+        print("LỖI KHI TRA CỨU:", results)
         raise HTTPException(
             status_code=503, # Service Unavailable
-            detail=f"Không thể xử lý yêu cầu do lỗi từ dịch vụ bên ngoài: {error_detail}"
+            detail="Không thể xử lý yêu cầu do lỗi từ dịch vụ Google Sheets."
         )
 
-    # Xử lý trường hợp không tìm thấy bất kỳ bản ghi nào
-    if not all_records:
+    if not activity_info and not certificate_info:
         raise HTTPException(
             status_code=404, # Not Found
-            detail="Không tìm thấy hoạt động hay chứng nhận nào phù hợp."
+            detail="Không tìm thấy thông tin tình nguyện viên phù hợp."
         )
     
-    # Trả về kết quả theo cấu trúc mà frontend mong muốn
-    return {"records": all_records}
+    return results
