@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# Các file scraper của bạn
 from scraper import scrape_news as fetch_news_from_source
 from scraper import scrape_article_with_requests as fetch_article_from_source
 from scraper import (
@@ -12,10 +13,12 @@ from scraper import (
     scrape_clubs,
     BASE_URL
 )
-# Đảm bảo bạn import đúng tên file đã sửa
-from sheets_lookup import find_volunteer_info
 
-app = FastAPI(title="GoVolunteer Scraper & Lookup API", version="8.1.0") # Tăng phiên bản
+# *** SỬA LẠI DÒNG NÀY VỀ NHƯ BAN ĐẦU ***
+# Dòng import này là đúng với cấu trúc dự án của bạn trên Render.
+from src.sheets_lookup import find_volunteer_info
+
+app = FastAPI(title="GoVolunteer Scraper & Lookup API", version="8.2.0") # Tăng phiên bản
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,9 +37,8 @@ CACHE_DURATION_SECONDS = 1800
 
 @app.get("/", summary="Kiểm tra trạng thái API")
 def read_root():
-    return {"status": "online", "message": "API GoVolunteer (Fixed Version) đã sẵn sàng!"}
+    return {"status": "online", "message": "API GoVolunteer (Final Fixed Version) đã sẵn sàng!"}
 
-# ... (tất cả các endpoint GET cũ của bạn giữ nguyên ở đây) ...
 @app.get("/news", summary="Lấy danh sách tất cả tin tức")
 def get_all_news():
     current_time = time.time()
@@ -87,7 +89,7 @@ def get_article_detail(url: str):
     return {"html_content": content}
 
 
-# *** ĐÃ CẬP NHẬT ENDPOINT NÀY ĐỂ XỬ LÝ DANH SÁCH ***
+# --- ENDPOINT TRA CỨU ĐÃ HOÀN THIỆN ---
 @app.post("/lookup", summary="Tra cứu Tình nguyện viên từ Google Sheets")
 def lookup_volunteer(request: LookupRequest):
     """
@@ -96,23 +98,21 @@ def lookup_volunteer(request: LookupRequest):
     """
     if not request.fullName or not request.citizenId:
         raise HTTPException(
-            status_code=400, # Bad Request
+            status_code=400,
             detail="Vui lòng cung cấp đầy đủ Họ tên và CCCD."
         )
 
-    # Gọi hàm đã sửa, hàm này sẽ trả về {'activities': [...], 'certificates': [...]}
     results = find_volunteer_info(request.fullName, request.citizenId)
     
-    # Lấy ra các danh sách kết quả
     activity_list = results.get('activities', [])
     certificate_list = results.get('certificates', [])
 
     # Chỉ báo lỗi 404 nếu CẢ HAI danh sách đều rỗng
     if not activity_list and not certificate_list:
         raise HTTPException(
-            status_code=404, # Not Found
+            status_code=404,
             detail="Không tìm thấy thông tin tình nguyện viên phù hợp."
         )
     
-    # Trả về kết quả cho frontend
+    # Trả về kết quả cho frontend, dù rỗng hay không
     return results
