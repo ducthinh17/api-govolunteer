@@ -6,7 +6,7 @@ from googleapiclient.errors import HttpError
 
 SERVICE_ACCOUNT_FILE = 'credentials.json'
 ACTIVITY_SHEET_ID = '1BCJbZqR98jjjqCJq1B2I5p_GuyGi6xwmgxKsRhvxdh0'
-CERTIFICATE_SHEET_ID = '1KaLqFwWDNOfHx432E12ScEZ0-BDdhAPbq3Q0BJLK-Fg'
+CERTIFICATE_SHEET_ID = '17wUDyxg3QyaEwcVyT2bRuhvaVk5IqS40HmZMpSFYY6s'
 SHEET_NAME = 'Sheet1'
 
 
