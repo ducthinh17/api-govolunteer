@@ -5,8 +5,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 SERVICE_ACCOUNT_FILE = 'credentials.json'
-ACTIVITY_SHEET_ID = '1BCJbZqR98jjjqCJq1B2I5p_GuyGi6xwmgxKsRhvxdh0'
-CERTIFICATE_SHEET_ID = '17wUDyxg3QyaEwcVyT2bRuhvaVk5IqS40HmZMpSFYY6s'
+ACTIVITY_SHEET_ID = '1BGbTI34I8H_cZaRey5UHuPkxZa1bMsk1JanXCZFdj3s'
+CERTIFICATE_SHEET_ID = '1uAVk9XZExLgCdfukYGxk8NSFh5CZtrfjS0gQtxjTQaQ'
 SHEET_NAME = 'Sheet1'
 
 
@@ -75,7 +75,7 @@ def update_pdf_requested(full_name: str, citizen_id: str, email: str):
         name_index = headers.index('User_Name')
         cccd_index = headers.index('CCCD')
         email_index = headers.index('Email')
-        # Bạn nói cột PDF_Requested nằm ở G -> index = 6
+
         requested_col_letter = "G"
     except ValueError:
         raise Exception("Thiếu cột cần thiết trong sheet.")

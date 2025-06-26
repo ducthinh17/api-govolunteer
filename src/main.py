@@ -48,8 +48,8 @@ app.add_middleware(
 # ==========================================================================
 SERVICE_ACCOUNT_FILE = 'credentials.json'
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-ACTIVITY_SHEET_ID = '1BCJbZqR98jjjqCJq1B2I5p_GuyGi6xwmgxKsRhvxdh0'
-CERTIFICATE_SHEET_ID = '17wUDyxg3QyaEwcVyT2bRuhvaVk5IqS40HmZMpSFYY6s'
+ACTIVITY_SHEET_ID = '1BGbTI34I8H_cZaRey5UHuPkxZa1bMsk1JanXCZFdj3s'
+CERTIFICATE_SHEET_ID = '1uAVk9XZExLgCdfukYGxk8NSFh5CZtrfjS0gQtxjTQaQ'
 SHEET_NAME = 'Sheet1'
 
 sheet_api = None
