@@ -1,8 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from src.sheets_utils import search_all_records_in_sheet
-
-CERTIFICATE_SHEET_ID = '17wUDyxg3QyaEwcVyT2bRuhvaVk5IqS40HmZMpSFYY6s'
+from src.sheets_utils import find_certificate_info
 
 router = APIRouter()
 
@@ -12,7 +10,7 @@ class LookupRequest(BaseModel):
 
 @router.post("/find-certificates")
 def find_certificates(request: LookupRequest):
-    certificates = search_all_records_in_sheet(CERTIFICATE_SHEET_ID, request.fullName, request.citizenId)
-    if not certificates:
+    cert = find_certificate_info(request.fullName, request.citizenId)
+    if not cert:
         raise HTTPException(status_code=404, detail="Không tìm thấy chứng nhận.")
-    return {"certificates": certificates}
+    return {"certificates": [cert]}
