@@ -22,9 +22,9 @@ from scraper import (
 )
 
 # --- ROUTER MODULES ---
-from find_activities import router as activities_router
-from find_certificate import router as certificates_router
-from request_pdf import router as pdf_router
+from src.find_activities import router as activities_router
+from src.find_certificate import router as certificates_router
+from src.request_pdf import router as pdf_router
 
 # ==========================================================================
 # --- 1. INIT APP & CORS ---
