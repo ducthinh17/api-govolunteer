@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sheets_lookup import update_pdf_requested
+from src.sheets_utils import update_pdf_requested
 
 router = APIRouter()
 
