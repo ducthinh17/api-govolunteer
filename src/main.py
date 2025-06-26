@@ -217,6 +217,8 @@ def _get_all_sheet_data(spreadsheet_id: str) -> Dict[str, Any]:
 class LookupRequest(BaseModel):
     fullName: str = Field(..., example="Nguyễn Văn A")
     citizenId: str = Field(..., example="123456789")
+    email: str | None = Field(None, example="abc@example.com")  
+
 
 @app.post("/lookup", summary="Tra cứu Tình nguyện viên từ Google Sheets")
 def lookup_volunteer(request: LookupRequest):
@@ -240,6 +242,67 @@ def lookup_volunteer(request: LookupRequest):
         "activity": activity_list[0] if activity_list else None,
         "certificate": certificate_list[0] if certificate_list else None,
     }
+
+
+@app.post("/request-pdf", summary="Yêu cầu gửi chứng nhận qua email (tùy chọn)")
+def request_pdf_certificate(request: LookupRequest):
+    """
+    Cập nhật cột PDF_Requested thành YES (TRUE) cho user đã xác minh.
+    Nếu request.email được cung cấp, cập nhật cả cột Email tương ứng.
+    """
+    if not sheet_api:
+        raise HTTPException(status_code=503, detail="Google Sheets API không khả dụng.")
+
+    try:
+        result = sheet_api.values().get(spreadsheetId=CERTIFICATE_SHEET_ID, range=SHEET_NAME).execute()
+        values = result.get('values', [])
+        if not values or len(values) < 2:
+            raise HTTPException(status_code=404, detail="Sheet không có dữ liệu.")
+
+        headers = values[0]
+        name_idx = headers.index('User_Name')
+        cccd_idx = headers.index('CCCD')
+        email_idx = headers.index('Email') if 'Email' in headers else -1
+        pdf_req_idx = headers.index('PDF_Requested') if 'PDF_Requested' in headers else -1
+
+        updated = False
+
+        for i, row in enumerate(values[1:], start=2):  # Bắt đầu từ dòng 2
+            if len(row) > max(name_idx, cccd_idx):
+                if (
+                    row[name_idx].strip().lower() == request.fullName.strip().lower()
+                    and row[cccd_idx].strip() == request.citizenId.strip()
+                ):
+                    updates = []
+                    if pdf_req_idx != -1:
+                        updates.append({
+                            "range": f"{SHEET_NAME}!{chr(65+pdf_req_idx)}{i}",
+                            "values": [["yes"]]
+                        })
+
+                    if request.email and email_idx != -1:
+                        updates.append({
+                            "range": f"{SHEET_NAME}!{chr(65+email_idx)}{i}",
+                            "values": [[request.email]]
+                        })
+
+                    if updates:
+                        body = {"valueInputOption": "USER_ENTERED", "data": updates}
+                        sheet_api.values().batchUpdate(
+                            spreadsheetId=CERTIFICATE_SHEET_ID, body=body
+                        ).execute()
+                        updated = True
+                    break
+
+        if not updated:
+            raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi phù hợp.")
+
+        return {"success": True, "message": "Yêu cầu gửi chứng nhận đã được ghi nhận."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi xử lý yêu cầu: {str(e)}")
+
+
 
 # ==========================================================================
 # --- 6. [CHỨC NĂNG MỚI] ENDPOINT KIỂM TRA & QUẢN TRỊ ---
