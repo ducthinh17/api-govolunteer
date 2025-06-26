@@ -71,10 +71,14 @@ def update_pdf_requested(full_name: str, citizen_id: str, email: str):
         return False
 
     headers = values[0]
-    name_index = headers.index('User_Name')
-    cccd_index = headers.index('CCCD')
-    email_index = headers.index('Email')
-    requested_index = headers.index('PDF_Requested')
+    try:
+        name_index = headers.index('User_Name')
+        cccd_index = headers.index('CCCD')
+        email_index = headers.index('Email')
+        # Bạn nói cột PDF_Requested nằm ở G -> index = 6
+        requested_col_letter = "G"
+    except ValueError:
+        raise Exception("Thiếu cột cần thiết trong sheet.")
 
     for i, row in enumerate(values[1:], start=2):
         if len(row) > max(name_index, cccd_index):
@@ -82,15 +86,23 @@ def update_pdf_requested(full_name: str, citizen_id: str, email: str):
                 row[name_index].strip().lower() == full_name.strip().lower()
                 and row[cccd_index].strip() == citizen_id.strip()
             ):
-                body = {
-                    "values": [[email, "TRUE"]]
-                }
+                # Ghi email nếu khác
+                email_cell = f"{SHEET_NAME}!{chr(65 + email_index)}{i}"
                 sheet_api.values().update(
                     spreadsheetId=CERTIFICATE_SHEET_ID,
-                    range=f"{SHEET_NAME}!{chr(65 + email_index)}{i}:{chr(65 + requested_index)}{i}",
+                    range=email_cell,
                     valueInputOption="USER_ENTERED",
-                    body=body
+                    body={"values": [[email]]}
                 ).execute()
+
+                # Ghi TRUE vào G{i} (PDF_Requested)
+                sheet_api.values().update(
+                    spreadsheetId=CERTIFICATE_SHEET_ID,
+                    range=f"{SHEET_NAME}!{requested_col_letter}{i}",
+                    valueInputOption="USER_ENTERED",
+                    body={"values": [["TRUE"]]}
+                ).execute()
+
                 return True
 
     return False
